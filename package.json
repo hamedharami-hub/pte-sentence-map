@@ -1,0 +1,8 @@
+{
+  "name": "pte-sentence-map",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/audit.mjs && node scripts/deep-audit.mjs && rm -rf dist && cp -R public dist",
+    "test": "node scripts/audit.mjs && node scripts/deep-audit.mjs"
+  }
+}
