@@ -1,8 +1,14 @@
 {
   "name": "pte-sentence-map",
   "private": true,
+  "type": "module",
   "scripts": {
+    "dev": "node server.js",
     "build": "node scripts/audit.mjs && node scripts/deep-audit.mjs && rm -rf dist && cp -R public dist",
-    "test": "node scripts/audit.mjs && node scripts/deep-audit.mjs"
+    "test": "node scripts/audit.mjs && node scripts/deep-audit.mjs",
+    "lint": "node scripts/audit.mjs && node scripts/deep-audit.mjs"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
