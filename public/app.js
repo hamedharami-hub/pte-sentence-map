@@ -1,3 +1,11 @@
+import {
+  initFirebase,
+  signInWithGoogle,
+  signOutUser,
+  loadStudyState,
+  saveStudyState
+} from './firebase-service.js';
+
 const TOPICS = {
   EDU: ['🎓', 'آموزش', 'Education'], TEC: ['⌘', 'فناوری', 'Technology'], ENV: ['♧', 'محیط‌زیست', 'Environment'], HEA: ['♡', 'سلامت', 'Health'], SOC: ['◌', 'جامعه', 'Society'], WOR: ['▣', 'کار', 'Work'], GOV: ['⌂', 'دولت', 'Government'], CUL: ['◒', 'فرهنگ', 'Culture'], URB: ['⌁', 'شهر و حمل‌ونقل', 'Urban'], SCI: ['✧', 'علم', 'Science'], XOV: ['◎', 'موضوعات ترکیبی', 'Cross-topic'],
 };
@@ -97,6 +105,32 @@ const ENGINE_GUIDE = {
   M21:['اقدام ← پیامد ← چون‌که سازوکار ← نتیجهٔ عملی','بهترین موتور برای توسعهٔ یک دلیل با توضیح و جزئیات مشخص.']
 };
 const STORAGE = { stars: 'pte-stars', flags: 'pte-flags', review: 'pte-review-status' };
+let cloudSyncTimer = null;
+let activeFirebaseUser = null;
+
+function setCloudSyncStatus(status) {
+  const el = $('syncStatus');
+  if (el) el.textContent = status;
+}
+
+function triggerCloudSync() {
+  if (!activeFirebaseUser) return;
+  clearTimeout(cloudSyncTimer);
+  setCloudSyncStatus('در حال ذخیره…');
+  cloudSyncTimer = setTimeout(async () => {
+    try {
+      await saveStudyState(activeFirebaseUser.uid, {
+        starred: state.stars,
+        flagged: state.flags,
+        review: state.review
+      });
+      setCloudSyncStatus('همگام با ابر ✓');
+    } catch (err) {
+      console.error('Cloud sync error:', err);
+      setCloudSyncStatus('خطای همگام‌سازی');
+    }
+  }, 600);
+}
 const state = {
   cards: [], byId: new Map(), variants: [], variantById: new Map(), engines: [], engineById: new Map(),
   scenarios: {}, subIndex: new Map(), topic: 'EDU', subtopic: '', view: 'engines', p1Only: false,
@@ -111,9 +145,15 @@ if (typeof window !== 'undefined') {
   window.escapeHtml = escapeHtml;
 }
 const readIds = key => { try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return new Set(Array.isArray(v) ? v.filter(x => typeof x === 'string') : []); } catch { return new Set(); } };
-function saveSet(name) { localStorage.setItem(STORAGE[name], JSON.stringify([...state[name]])); }
+function saveSet(name) {
+  localStorage.setItem(STORAGE[name], JSON.stringify([...state[name]]));
+  triggerCloudSync();
+}
 function readReview() { try { const v = JSON.parse(localStorage.getItem(STORAGE.review) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; } }
-function saveReview() { localStorage.setItem(STORAGE.review, JSON.stringify(state.review)); }
+function saveReview() {
+  localStorage.setItem(STORAGE.review, JSON.stringify(state.review));
+  triggerCloudSync();
+}
 function announce(message) {
   const el = $('status');
   if (!el) return;
@@ -962,6 +1002,159 @@ function renderPractice() {
   root.append(card);
 }
 
+function buildPrintableDocument(items) {
+  const container = $('printContainer');
+  if (!container) return;
+
+  const now = new Date();
+  const dateFa = now.toLocaleDateString('fa-IR');
+  const dateEn = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const cardsHtml = items.map((item, idx) => {
+    const isVariant = Boolean(item.variant_id);
+    const num = (idx + 1).toLocaleString('fa-IR');
+    const priority = isVariant ? 'P1' : (item.memorisation_priority || 'P2');
+    const priorityLabel = priority === 'P1' ? 'P1 · اولویت طلایی' : priority;
+    const priorityClass = priority.toLowerCase();
+    
+    const roleText = isVariant ? 'نسخهٔ موتور' : (ROLE[item.essay_role] || item.essay_role || 'جمله استاندارد');
+    const topicsText = isVariant
+      ? (variantTopics(item).slice(0, 2).join(' · ') || 'موضوعات مشترک')
+      : (item.topic_links ? item.topic_links.map(label).slice(0, 3).join(' · ') : '');
+    
+    const sentenceText = isVariant ? item.completed_sentence : item.text;
+    const engineInfo = isVariant && item.engine_id ? `${item.engine_id} (${state.engineById.get(item.engine_id)?.name_fa || ''})` : '';
+
+    return `
+      <div class="print-item-card">
+        <div class="print-item-head">
+          <div class="print-item-tags">
+            <span class="print-num">#${num}</span>
+            <span class="print-pill ${priorityClass}">${priorityLabel}</span>
+            <span class="print-pill role">${escapeHtml(roleText)}</span>
+            ${topicsText ? `<span class="print-pill">${escapeHtml(topicsText)}</span>` : ''}
+          </div>
+          <div class="print-study-box">
+            <span>ارزیابی:</span>
+            <span>[ ] دور ۱</span>
+            <span>[ ] دور ۲</span>
+            <span>[ ] تسلط کامل</span>
+          </div>
+        </div>
+        <p class="print-item-sentence" dir="ltr">${escapeHtml(sentenceText)}</p>
+        ${engineInfo ? `<div class="print-item-meta"><span>موتور سازنده: ${escapeHtml(engineInfo)}</span></div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="print-doc-header">
+      <div class="print-brand-row">
+        <h1 class="print-doc-title">جمله‌یار PTE — برگهٔ مطالعه آفلاین جمله‌های منتخب</h1>
+        <span class="print-badge-count">مجموع: ${items.length.toLocaleString('fa-IR')} جمله</span>
+      </div>
+      <div class="print-doc-subtitle">PTE Academic Essay — Selected Core Sentences & High-Frequency Structures</div>
+      <div class="print-meta-grid">
+        <div><strong>تاریخ آماده‌سازی:</strong> ${dateFa} (${dateEn})</div>
+        <div><strong>هدف مطالعه:</strong> تسلط بر واژگان و ساختارهای دستوری طلایی برای رایتینگ PTE</div>
+        <div><strong>راهنما:</strong> ستون ارزیابی بالا برای علامت‌زدن پیشرفت در زمان مطالعهٔ چاپی یا آفلاین است.</div>
+      </div>
+    </div>
+    <div class="print-cards-list">
+      ${cardsHtml}
+    </div>
+    <div class="print-doc-footer">
+      <span>تولید شده توسط جمله‌یار PTE (PTE Sentence Map) · https://ai.studio</span>
+      <span dir="ltr">Offline Study Deck</span>
+    </div>
+  `;
+}
+
+function downloadPrintableHtml() {
+  const content = $('printContainer').innerHTML;
+  const fullHtml = `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>جمله‌یار PTE — برگهٔ مطالعه آفلاین جمله‌های منتخب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { font-family: Vazirmatn, system-ui, sans-serif; background: #f8fafc; margin: 0; padding: 24px 16px; color: #0f172a; line-height: 1.6; }
+.print-container { background: #fff; max-width: 800px; margin: 0 auto; padding: 32px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+.print-doc-header { border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px; }
+.print-brand-row { display: flex; justify-content: space-between; align-items: baseline; }
+.print-doc-title { font-size: 20px; font-weight: 800; margin: 0; color: #0f172a; }
+.print-badge-count { font-size: 12px; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 9999px; }
+.print-doc-subtitle { font-family: 'DM Sans', sans-serif; direction: ltr; text-align: right; font-size: 12px; color: #475569; margin: 4px 0 10px; }
+.print-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 11px; color: #475569; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; }
+.print-cards-list { display: flex; flex-direction: column; gap: 12px; }
+.print-item-card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; background: #fff; page-break-inside: avoid; break-inside: avoid; }
+.print-item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.print-item-tags { display: flex; align-items: center; gap: 6px; }
+.print-num { font-weight: 700; font-size: 11px; color: #64748b; }
+.print-pill { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; }
+.print-pill.p1 { background: #fef3c7; border-color: #fde68a; color: #92400e; font-weight: 700; }
+.print-pill.p2 { background: #eff6ff; border-color: #dbeafe; color: #1e40af; }
+.print-pill.p3 { background: #f1f5f9; border-color: #e2e8f0; color: #475569; }
+.print-pill.role { background: #f0fdf4; border-color: #dcfce7; color: #166534; }
+.print-study-box { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; color: #64748b; border: 1px dashed #cbd5e1; padding: 2px 8px; border-radius: 4px; }
+.print-item-sentence { font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; line-height: 1.6; font-weight: 500; color: #0f172a; margin: 0 0 6px 0; direction: ltr; text-align: left; }
+.print-item-meta { font-size: 11px; color: #64748b; display: flex; gap: 12px; }
+.print-doc-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
+@media print {
+  @page { size: A4 portrait; margin: 14mm 10mm; }
+  body { background: #fff !important; padding: 0 !important; }
+  .print-container { box-shadow: none !important; padding: 0 !important; max-width: 100% !important; }
+  .print-item-card { break-inside: avoid !important; page-break-inside: avoid !important; }
+}
+</style>
+</head>
+<body>
+<div class="print-container">
+${content}
+</div>
+<script>
+window.onload = function() {
+  setTimeout(function() { window.print(); }, 500);
+};
+</script>
+</body>
+</html>`;
+
+  const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pte-starred-sentences.html';
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function closePrintModal() {
+  $('printModal').hidden = true;
+}
+
+function openPrintModal() {
+  const items = saved('stars');
+  if (!items.length) {
+    announce('هنوز جمله‌ای در منتخب‌ها ذخیره نشده است.');
+    return;
+  }
+  $('printCount').textContent = items.length.toLocaleString('fa-IR');
+  buildPrintableDocument(items);
+  $('printModal').hidden = false;
+  try {
+    window.print();
+  } catch (err) {
+    console.warn('Direct print invoke not supported in this frame:', err);
+  }
+}
+
 function bind() {
   $('search').addEventListener('input', e => {
     state.query = e.target.value.trim();
@@ -979,6 +1172,17 @@ function bind() {
     $('onlyP1').classList.toggle('active', state.p1Only);
     render();
   });
+  $('exportPdfBtn').addEventListener('click', openPrintModal);
+  $('printModalClose').addEventListener('click', closePrintModal);
+  $('printModalBackdrop').addEventListener('click', closePrintModal);
+  $('printDirectBtn').addEventListener('click', () => {
+    try {
+      window.print();
+    } catch (err) {
+      console.warn('Print invocation blocked:', err);
+    }
+  });
+  $('printDownloadBtn').addEventListener('click', downloadPrintableHtml);
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
     state.view = b.dataset.view;
     state.subtopic = '';
@@ -1005,6 +1209,15 @@ function render() {
   $('listHead').hidden = practice || isEngines;
   $('cards').hidden = practice || isEngines;
 
+  const isStarred = state.view === 'starred';
+  const exportBtn = $('exportPdfBtn');
+  if (exportBtn) {
+    exportBtn.hidden = !isStarred;
+    exportBtn.disabled = state.stars.size === 0;
+    exportBtn.style.opacity = state.stars.size === 0 ? '0.5' : '1';
+    exportBtn.style.pointerEvents = state.stars.size === 0 ? 'none' : 'auto';
+  }
+
   const titles = { engines: 'موتورهای جمله', starred: 'منتخب‌های من', flagged: 'مرور حفظی', practice: 'تمرین حفظ' };
   $('titleText').textContent = topics ? (state.subtopic ? SUB[state.topic][state.subtopic] : TOPICS[state.topic][1]) : titles[state.view];
   $('subtitle').textContent = topics
@@ -1029,11 +1242,101 @@ async function load(url) {
   return r.json();
 }
 
+async function setupFirebaseAuth() {
+  const loginBtn = $('loginBtn');
+  const logoutBtn = $('logoutBtn');
+
+  if (loginBtn) {
+    loginBtn.addEventListener('click', async () => {
+      try {
+        $('authLabel').textContent = 'در حال اتصال…';
+        await signInWithGoogle();
+      } catch (err) {
+        console.error('Sign in failed:', err);
+        $('authLabel').textContent = 'خطا در ورود، دوباره امتحان کنید';
+        setTimeout(() => {
+          if (!activeFirebaseUser) $('authLabel').textContent = 'همگام‌سازی ابری با گوگل';
+        }, 3000);
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOutUser();
+      } catch (err) {
+        console.error('Sign out failed:', err);
+      }
+    });
+  }
+
+  await initFirebase({
+    onAuthChange: async user => {
+      activeFirebaseUser = user;
+      if (user) {
+        $('loginBtn').hidden = true;
+        $('userInfo').hidden = false;
+        $('userName').textContent = user.displayName || user.email || 'کاربر گرامی';
+        setCloudSyncStatus('در حال همگام‌سازی…');
+
+        try {
+          const remoteData = await loadStudyState(user.uid);
+          if (remoteData) {
+            let changed = false;
+            if (Array.isArray(remoteData.starred)) {
+              remoteData.starred.forEach(id => {
+                if (typeof id === 'string' && !state.stars.has(id)) {
+                  state.stars.add(id);
+                  changed = true;
+                }
+              });
+            }
+            if (Array.isArray(remoteData.flagged)) {
+              remoteData.flagged.forEach(id => {
+                if (typeof id === 'string' && !state.flags.has(id)) {
+                  state.flags.add(id);
+                  changed = true;
+                }
+              });
+            }
+            if (remoteData.review && typeof remoteData.review === 'object') {
+              state.review = { ...state.review, ...remoteData.review };
+              changed = true;
+            }
+            if (changed) {
+              localStorage.setItem(STORAGE.stars, JSON.stringify([...state.stars]));
+              localStorage.setItem(STORAGE.flags, JSON.stringify([...state.flags]));
+              localStorage.setItem(STORAGE.review, JSON.stringify(state.review));
+              render();
+            }
+          } else {
+            await saveStudyState(user.uid, {
+              starred: state.stars,
+              flagged: state.flags,
+              review: state.review
+            });
+          }
+          setCloudSyncStatus('همگام با ابر ✓');
+        } catch (err) {
+          console.error('Failed to sync study state:', err);
+          setCloudSyncStatus('خطا در بارگذاری ابر');
+        }
+      } else {
+        $('loginBtn').hidden = false;
+        $('userInfo').hidden = true;
+        $('authLabel').textContent = 'همگام‌سازی ابری با گوگل';
+      }
+    }
+  });
+}
+
 async function init() {
   state.stars = readIds(STORAGE.stars);
   state.flags = readIds(STORAGE.flags);
   state.review = readReview();
   bind();
+  setupFirebaseAuth();
   try {
     const [cards, questions, recommendations, bank, wave1, wave2, wave3] = await Promise.all([
       load('data/cards.json'),

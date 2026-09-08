@@ -68,8 +68,93 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-box {
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-auth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-auth:hover {
+  background: #fff;
+  border-color: var(--blue-subtle);
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-icon {
+  font-size: 14px;
+  color: var(--blue);
+}
+
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+
+.sync-badge {
+  display: inline-block;
+  background: var(--emerald-pale);
+  color: var(--emerald);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.user-name {
+  color: var(--ink);
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.btn-logout:hover {
+  color: var(--coral);
 }
 
 .brand {
@@ -391,6 +476,44 @@ nav {
   color: var(--muted);
   font-size: 13px;
   font-weight: 500;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.list-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-export-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--blue-pale);
+  border: 1px solid var(--blue-subtle);
+  color: var(--blue);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-export-pdf:hover {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+  box-shadow: 0 4px 12px rgba(11, 95, 255, 0.2);
+}
+
+.btn-export-pdf:active {
+  transform: scale(0.98);
+}
+
+.btn-export-pdf .export-icon {
+  font-size: 14px;
 }
 
 .filter {
@@ -2073,6 +2196,403 @@ nav {
     min-width: 44px;
     min-height: 44px;
     font-size: 18px;
+  }
+}
+
+/* ----------------------------------------------------
+   Print & PDF Modal & Print Sheet Styles
+   ---------------------------------------------------- */
+.print-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.print-modal[hidden] {
+  display: none !important;
+}
+
+.print-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 28, 59, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.print-modal-card {
+  position: relative;
+  z-index: 2;
+  width: min(860px, 95vw);
+  max-height: 90vh;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.print-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+}
+
+.print-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--ink);
+}
+
+.print-modal-count {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  display: block;
+}
+
+.print-modal-toolbar {
+  padding: 12px 20px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-print-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-print-action.primary {
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue);
+}
+
+.btn-print-action.primary:hover {
+  background: var(--blue-hover);
+  box-shadow: 0 4px 12px rgba(11, 95, 255, 0.25);
+}
+
+.btn-print-action.secondary {
+  background: var(--white);
+  color: var(--ink-secondary);
+  border: 1px solid var(--line);
+}
+
+.btn-print-action.secondary:hover {
+  border-color: var(--ink-secondary);
+  color: var(--ink);
+}
+
+.print-hint {
+  width: 100%;
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.print-preview-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background: #f1f5f9;
+}
+
+.print-container {
+  background: #fff;
+  padding: 32px 36px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  max-width: 760px;
+  margin: 0 auto;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.print-doc-header {
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.print-brand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.print-doc-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+  color: #0f172a;
+}
+
+.print-badge-count {
+  font-size: 12px;
+  font-weight: 700;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  color: #0f172a;
+}
+
+.print-doc-subtitle {
+  font-family: 'DM Sans', sans-serif;
+  direction: ltr;
+  text-align: right;
+  font-size: 12px;
+  color: #475569;
+  margin: 4px 0 10px;
+  font-weight: 500;
+}
+
+.print-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  font-size: 11px;
+  color: #475569;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.print-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.print-item-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: #fff;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.print-item-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.print-num {
+  font-weight: 700;
+  font-size: 11px;
+  color: #64748b;
+  min-width: 22px;
+}
+
+.print-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.print-pill.p1 {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+  font-weight: 700;
+}
+
+.print-pill.p2 {
+  background: #eff6ff;
+  border-color: #dbeafe;
+  color: #1e40af;
+}
+
+.print-pill.p3 {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.print-pill.role {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  color: #166534;
+}
+
+.print-study-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #64748b;
+  border: 1px dashed #cbd5e1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.print-item-sentence {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  direction: ltr;
+  text-align: left;
+}
+
+.print-item-meta {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.print-doc-footer {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+/* ----------------------------------------------------
+   Printer / PDF Output Rules
+   ---------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 10mm 14mm 10mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+    min-width: 0 !important;
+  }
+
+  /* Hide app chrome completely */
+  header,
+  .intro,
+  #topicWorkspace,
+  #engineWorkspace,
+  #practiceWorkspace,
+  #listHead,
+  #cards,
+  #loading,
+  #empty,
+  #loadError,
+  .sr-only,
+  .print-modal-backdrop,
+  .print-modal-header,
+  .print-modal-toolbar,
+  .btn-close {
+    display: none !important;
+  }
+
+  /* Render printable sheet cleanly */
+  #printModal {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    inset: auto !important;
+    z-index: auto !important;
+  }
+
+  .print-modal-card {
+    position: static !important;
+    width: 100% !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-preview-scroll {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .print-container {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  .print-item-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 0.75pt solid #94a3b8 !important;
+    border-radius: 4pt !important;
+    margin-bottom: 8pt !important;
+    padding: 8pt 10pt !important;
+    background: #fff !important;
+  }
+
+  .print-pill {
+    border: 0.5pt solid #cbd5e1 !important;
+  }
+
+  .print-pill.p1 {
+    background: #fef3c7 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-item-sentence {
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    color: #000 !important;
   }
 }
 
